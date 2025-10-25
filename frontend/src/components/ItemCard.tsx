@@ -40,7 +40,8 @@ export default function ItemCard({ item }: ItemCardProps) {
             <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
             <span className="text-sm font-semibold">{item.rating}</span>
             <span className="text-xs text-gray-500">
-              ({Math.floor(Math.random() * 500) + 100})
+              
+              (250 reseñas)
             </span>
           </div>
 

@@ -78,7 +78,7 @@ export default function DetailPage() {
                                 <span className="text-lg font-semibold">{item.rating}</span>
                             </div>
                             <span className="text-gray-500">
-                                ({Math.floor(Math.random() * 500) + 100} reseñas)
+                                (22 reseñas)
                             </span>
                         </div>
 
