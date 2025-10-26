@@ -463,14 +463,6 @@ setIsModalOpen(false);
 - [ ] Docker Compose para desarrollo
 - [ ] Documentación con Storybook
 
----
-
-## 📖 Documentación Adicional
-
-- [QUICK_START.md](./QUICK_START.md) - Guía de inicio rápido
-- [CHANGELOG.md](./CHANGELOG.md) - Historial de cambios
-- [CONTRIBUTING.md](./CONTRIBUTING.md) - Cómo contribuir
-- [API_DOCS.md](./API_DOCS.md) - Documentación de API
 
 ---
 
@@ -486,17 +478,11 @@ setIsModalOpen(false);
 
 ---
 
-## 📝 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver [LICENSE](./LICENSE) para más detalles.
-
----
-
 ## 👨‍💻 Autor
 
 **Tu Nombre**
-- GitHub: [@tu-usuario](https://github.com/tu-usuario)
-- Email: tu-email@example.com
+- GitHub: [@tu-usuario](https://github.com/Josimar-Victoria)
+- Email: josimarvictoria968@gmail.com
 
 ---
 
