@@ -13,7 +13,7 @@ export default function MyProductsHeader() {
                 </p>
             </div>
             <Link
-                href="/crear-producto"
+                href="/crear-productos"
                 className="flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-all"
             >
                 <Plus className="w-5 h-5" />

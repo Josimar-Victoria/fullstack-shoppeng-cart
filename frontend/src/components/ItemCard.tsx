@@ -72,7 +72,7 @@ export default function ItemCard({
 
         {/* Imagen y Badge */}
         <div className="relative">
-          <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center text-6xl">
+          <div className="w-full h-48 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center overflow-hidden">
             <ProductImage image={item.image} name={item.name} />
           </div>
           <span className={`absolute top-3 ${showActions ? 'left-3' : 'right-3'} px-3 py-1 rounded-full text-xs font-bold ${item.type === 'product'
