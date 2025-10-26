@@ -481,7 +481,7 @@ setIsModalOpen(false);
 ## 👨‍💻 Autor
 
 **Tu Nombre**
-- GitHub: [@tu-usuario](https://github.com/Josimar-Victoria)
+- GitHub: [@Josimar-Victoria](https://github.com/Josimar-Victoria)
 - Email: josimarvictoria968@gmail.com
 
 ---
