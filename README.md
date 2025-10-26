@@ -27,8 +27,8 @@
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/tu-usuario/fullstack-marketplace.git
-cd fullstack-marketplace
+git clone https://github.com/Josimar-Victoria/fullstack-shoppeng-cart
+cd fullstack-shoppeng-cart
 
 # Instalar backend
 cd backend
