@@ -1,9 +1,21 @@
 "use client"
 // components/Header.tsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { ShoppingCart, User, Search, LogIn, UserPlus } from 'lucide-react';
+import {
+  ShoppingCart,
+  User,
+  Search,
+  LogIn,
+  UserPlus,
+  LogOut,
+  UserCog,
+  ClipboardList,
+  Package,
+  CircleFadingPlus
+} from 'lucide-react';
 import { useCart } from '@/lib/cart-context';
+// Asumo que tu modal está en esta ruta
 import AuthModals from './modals/AuthModals';
 
 export default function Header() {
@@ -13,18 +25,84 @@ export default function Header() {
   const [authModalView, setAuthModalView] = useState<'login' | 'register'>('login');
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Cerrar menú al hacer click fuera
+  // --- 1. Estado para manejar la autenticación ---
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+
+  // --- 2. Función para chequear el estado de Auth (usada por handlers) ---
+  // Esta función se usará al CERRAR el modal y al hacer LOGOUT
+  const checkAuthStatus = useCallback(() => {
+    // Nos aseguramos que esto solo se ejecute en el cliente
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      const userString = localStorage.getItem('authUser');
+
+      if (token && userString) {
+        try {
+          const user = JSON.parse(userString);
+          setUserName(user.name);
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error("Error al parsear usuario de localStorage", e);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('authUser');
+          setIsAuthenticated(false);
+          setUserName(null);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setUserName(null);
+      }
+    }
+  }, []); // El array vacío significa que esta función nunca cambia
+
+  // --- 3. Chequeo al cargar la página (lado cliente) ---
+  // ¡CORRECCIÓN APLICADA AQUÍ!
+  // Movimos la lógica directamente al useEffect con un array vacío []
+  // Esto se ejecuta UNA SOLA VEZ al montar el componente en el cliente
+  // y silencia el warning de React.
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const token = localStorage.getItem('authToken');
+      const userString = localStorage.getItem('authUser');
+
+      if (token && userString) {
+        try {
+          const user = JSON.parse(userString);
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setUserName(user.name);
+
+          setIsAuthenticated(true);
+        } catch (e) {
+          console.error("Error al parsear usuario de localStorage", e);
+          localStorage.removeItem('authToken');
+          localStorage.removeItem('authUser');
+
+          setIsAuthenticated(false);
+
+          setUserName(null);
+        }
+      } else {
+
+        setIsAuthenticated(false);
+
+        setUserName(null);
+      }
+    }
+  }, []); // El array vacío [] asegura que se ejecute solo una vez al montar
+
+  // --- 4. Cerrar menú al hacer click fuera ---
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // --- 5. Funciones para abrir los modales ---
   const handleOpenLogin = () => {
     setAuthModalView('login');
     setShowAuthModal(true);
@@ -37,20 +115,37 @@ export default function Header() {
     setShowUserMenu(false);
   };
 
+  // --- 6. Función de Logout ---
+  const handleLogout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('authUser');
+    }
+    checkAuthStatus(); // Actualiza el estado a 'false'
+    setShowUserMenu(false);
+  };
+
+  // --- 7. Handler para CERRAR el modal ---
+  // Esto es clave para que el header se actualice SIN recargar
+  const handleModalClose = () => {
+    setShowAuthModal(false);
+    checkAuthStatus(); // Re-chequea el auth *después* de un login/registro
+  };
+
   return (
     <>
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             {/* Logo */}
-            <Link 
+            <Link
               href="/"
               className="flex items-center gap-3 hover:opacity-80 transition"
             >
               <ShoppingCart className="w-8 h-8" />
               <h1 className="text-xl font-bold hidden sm:block">ShopHub</h1>
             </Link>
-            
+
             {/* Barra de Búsqueda */}
             <div className="flex-1 max-w-2xl">
               <div className="relative">
@@ -78,59 +173,116 @@ export default function Header() {
                   </span>
                 )}
               </Link>
-              
+
               {/* Dropdown de Usuario */}
               <div className="relative" ref={menuRef}>
-                <button 
+                <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="p-2 hover:bg-blue-500 rounded-full transition cursor-pointer"
                 >
                   <User className="w-6 h-6" />
                 </button>
 
-                {/* Menú Dropdown */}
+                {/* --- 8. MENÚ DROPDOWN DINÁMICO --- */}
                 {showUserMenu && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-100 animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="py-2">
-                      {/* Opción Login */}
-                      <button
-                        onClick={handleOpenLogin}
-                        className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
-                      >
-                        <LogIn className="w-5 h-5 text-blue-600" />
-                        <div className="text-left">
-                          <p className="font-semibold">Iniciar Sesión</p>
-                          <p className="text-xs text-gray-500">Accede a tu cuenta</p>
+
+                    {isAuthenticated ? (
+                      // --- VISTA LOGUEADO ---
+                      <>
+                        <div className="px-4 py-3 border-b border-gray-100">
+                          <p className="text-sm text-gray-500">Hola de nuevo,</p>
+                          <p className="font-semibold text-gray-900 truncate">{userName || 'Usuario'}</p>
                         </div>
-                      </button>
-
-                      <div className="border-t border-gray-100 my-1"></div>
-
-                      {/* Opción Registro */}
-                      <button
-                        onClick={handleOpenRegister}
-                        className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
-                      >
-                        <UserPlus className="w-5 h-5 text-green-600 cursor-pointer" />
-                        <div className="text-left">
-                          <p className="font-semibold ">Registrarse</p>
-                          <p className="text-xs text-gray-500">Crea una cuenta nueva</p>
+                        <div className="py-2">
+                          <Link
+                            href="/crear-productos"
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <CircleFadingPlus className="w-5 h-5 text-blue-600" />
+                            <p className="font-semibold">Crear Mi Producto</p>
+                          </Link>
+                          <Link
+                            href="/mis-productos"
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <Package className="w-5 h-5 text-green-600" />
+                            <p className="font-semibold">Mis Productos</p>
+                          </Link>
+                          <Link
+                            href="/cuenta"
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <UserCog className="w-5 h-5 text-blue-600" />
+                            <p className="font-semibold">Mi Cuenta</p>
+                          </Link>
+                          <Link
+                            href="/mis-pedidos"
+                            onClick={() => setShowUserMenu(false)}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <ClipboardList className="w-5 h-5 text-purple-600" />
+                            <p className="font-semibold">Mis Pedidos</p>
+                          </Link>
                         </div>
-                      </button>
-                    </div>
+                        <div className="py-2 border-t border-gray-100">
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-red-50 transition"
+                          >
+                            <LogOut className="w-5 h-5 text-red-600" />
+                            <p className="font-semibold">Cerrar Sesión</p>
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      // --- VISTA INVITADO (Tu código original) ---
+                      <>
+                        <div className="py-2">
+                          {/* Opción Login */}
+                          <button
+                            onClick={handleOpenLogin}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <LogIn className="w-5 h-5 text-blue-600" />
+                            <div className="text-left">
+                              <p className="font-semibold">Iniciar Sesión</p>
+                              <p className="text-xs text-gray-500">Accede a tu cuenta</p>
+                            </div>
+                          </button>
 
-                    {/* Footer del dropdown */}
-                    <div className="from-blue-50 to-purple-50 px-4 py-3 border-t border-gray-100">
-                      <p className="text-xs text-gray-600 text-center">
-                        ¿Nuevo en ShopHub? 
-                        <button 
-                          onClick={handleOpenRegister}
-                          className="text-blue-600 font-semibold ml-1 cursor-pointer hover:text-blue-700"
-                        >
-                          Únete ahora
-                        </button>
-                      </p>
-                    </div>
+                          <div className="border-t border-gray-100 my-1"></div>
+
+                          {/* Opción Registro */}
+                          <button
+                            onClick={handleOpenRegister}
+                            className="w-full flex items-center gap-3 px-4 py-3 cursor-pointer text-gray-700 hover:bg-blue-50 transition"
+                          >
+                            <UserPlus className="w-5 h-5 text-green-600 cursor-pointer" />
+                            <div className="text-left">
+                              <p className="font-semibold ">Registrarse</p>
+                              <p className="text-xs text-gray-500">Crea una cuenta nueva</p>
+                            </div>
+                          </button>
+                        </div>
+
+                        {/* Footer del dropdown */}
+                        <div className="from-blue-50 to-purple-50 px-4 py-3 border-t border-gray-100">
+                          <p className="text-xs text-gray-600 text-center">
+                            ¿Nuevo en ShopHub?
+                            <button
+                              onClick={handleOpenRegister}
+                              className="text-blue-600 font-semibold ml-1 cursor-pointer hover:text-blue-700"
+                            >
+                              Únete ahora
+                            </button>
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -142,9 +294,10 @@ export default function Header() {
       {/* Modal de Autenticación */}
       <AuthModals
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={handleModalClose} // <-- Usamos el nuevo handler
         initialView={authModalView}
       />
     </>
   );
 }
+

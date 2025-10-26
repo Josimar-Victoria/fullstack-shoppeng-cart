@@ -1,7 +1,18 @@
 "use client"
 // components/AuthModals.tsx
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, Loader2 } from 'lucide-react';
+
+// --- 1. Importamos nuestro hook (ruta actualizada) ---
+import { useApi } from '@/hook/useApi';
+
+// --- 2. Definimos la respuesta de la API de Auth ---
+// (Tanto Login como Register devuelven esto)
+interface AuthResponse {
+  message: string;
+  user: { id: string; name: string; email: string };
+  token: string;
+}
 
 interface AuthModalsProps {
   isOpen: boolean;
@@ -24,28 +35,85 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
 
+  // --- 3. Inicializamos el hook y el estado de error del formulario ---
+  const { data, isLoading, error: apiHookError, request } = useApi<AuthResponse>();
+  const [formError, setFormError] = useState<string | null>(null);
+
   if (!isOpen) return null;
 
-  const handleLogin = (e: React.FormEvent) => {
+  // --- 4. Actualizamos handleLogin ---
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Login:', { loginEmail, loginPassword });
-    // Aquí irá la lógica de autenticación
-    alert('¡Login exitoso! (Demo)');
-    onClose();
+    setFormError(null); // Limpiamos errores previos
+
+    const { success, data, error } = await request({
+      method: 'POST',
+      url: '/api/auth/login', // Llamamos a nuestra API de Next.js
+      body: {
+        email: loginEmail,
+        password: loginPassword,
+      }
+    });
+
+    if (success && data) {
+      console.log('Login Exitoso:', data);
+
+      // --- ¡LÓGICA DE LOCALSTORAGE AÑADIDA! ---
+      // 1. Guardamos el token y el usuario en localStorage.
+      // Guardamos el token como un string
+      localStorage.setItem('authToken', data.token);
+      // Guardamos el objeto 'user' como un string JSON
+      localStorage.setItem('authUser', JSON.stringify(data.user));
+
+      // 2. (TODO) Ahora, actualiza tu estado global (Context)
+      // para que toda la app sepa que el usuario está logueado
+      // sin tener que recargar la página.
+      // Por ejemplo: auth.login(data.user, data.token);
+      // --- FIN DE LA MODIFICACIÓN ---
+
+      onClose();
+    } else {
+      // Si la API falla, mostramos el error
+      setFormError(error || 'Error desconocido');
+    }
   };
 
-  const handleRegister = (e: React.FormEvent) => {
+  // --- 5. Actualizamos handleRegister ---
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setFormError(null); // Limpiamos errores previos
+
     if (registerPassword !== registerConfirmPassword) {
-      alert('Las contraseñas no coinciden');
+      setFormError('Las contraseñas no coinciden');
       return;
     }
 
-    console.log('Registro:', { registerName, registerEmail, registerPassword });
-    // Aquí irá la lógica de registro
-    alert('¡Registro exitoso! (Demo)');
-    onClose();
+    const { success, data, error } = await request({
+      method: 'POST',
+      url: '/api/auth/register', // Llamamos a nuestra API de Next.js
+      body: {
+        name: registerName,
+        email: registerEmail,
+        password: registerPassword,
+      }
+    });
+
+    if (success && data) {
+      console.log('Registro Exitoso:', data);
+
+      // --- ¡LÓGICA DE LOCALSTORAGE AÑADIDA! ---
+      // 1. Guardamos también al registrar (auto-login)
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('authUser', JSON.stringify(data.user));
+
+      // 2. (TODO) Actualiza tu estado global (Context)
+      // Por ejemplo: auth.login(data.user, data.token);
+      // --- FIN DE LA MODIFICACIÓN ---
+
+      onClose();
+    } else {
+      setFormError(error || 'Error desconocido');
+    }
   };
 
   const resetForms = () => {
@@ -57,6 +125,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
     setRegisterConfirmPassword('');
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setFormError(null); // --- Limpiamos el error
   };
 
   const switchView = (newView: 'login' | 'register') => {
@@ -67,7 +136,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       {/* Overlay */}
-      <div 
+      <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
       />
@@ -82,13 +151,13 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
           >
             <X className="w-5 h-5" />
           </button>
-          
+
           <h2 className="text-2xl font-bold mb-2">
             {view === 'login' ? '¡Bienvenido de nuevo!' : '¡Únete a ShopHub!'}
           </h2>
           <p className="text-blue-100">
-            {view === 'login' 
-              ? 'Ingresa tus credenciales para continuar' 
+            {view === 'login'
+              ? 'Ingresa tus credenciales para continuar'
               : 'Crea tu cuenta y comienza a comprar'}
           </p>
         </div>
@@ -97,21 +166,19 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
         <div className="flex border-b border-gray-200">
           <button
             onClick={() => switchView('login')}
-            className={`flex-1 py-4 font-semibold transition cursor-pointer ${
-              view === 'login'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 py-4 font-semibold transition cursor-pointer ${view === 'login'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700'
+              }`}
           >
             Iniciar Sesión
           </button>
           <button
             onClick={() => switchView('register')}
-            className={`flex-1 py-4 font-semibold transition cursor-pointer ${
-              view === 'register'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-500 hover:text-gray-700 '
-            }`}
+            className={`flex-1 py-4 font-semibold transition cursor-pointer ${view === 'register'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-500 hover:text-gray-700 '
+              }`}
           >
             Registrarse
           </button>
@@ -135,6 +202,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="tu@email.com"
                     required
+                    disabled={isLoading} // --- Desactivar si está cargando
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -153,6 +221,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="••••••••"
                     required
+                    disabled={isLoading} // --- Desactivar si está cargando
                     className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
@@ -175,15 +244,28 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                 </button>
               </div>
 
+              {/* --- 6. Mostrar Error del Formulario --- */}
+              {formError && (
+                <div className="text-red-600 bg-red-50 p-3 rounded-lg text-sm text-center">
+                  {formError}
+                </div>
+              )}
+
               {/* Botón Submit */}
               <button
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl"
+                disabled={isLoading} // --- Desactivar si está cargando
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Iniciar Sesión
+                {/* --- 7. Mostrar Spinner o Texto --- */}
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  'Iniciar Sesión'
+                )}
               </button>
 
-              {/* Divider */}
+              {/* Divider y Social Login (sin cambios) */}
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300"></div>
@@ -192,8 +274,6 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                   <span className="px-4 bg-white text-gray-500">o continúa con</span>
                 </div>
               </div>
-
-              {/* Botones Social Login */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -227,6 +307,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     onChange={(e) => setRegisterName(e.target.value)}
                     placeholder="Juan Pérez"
                     required
+                    disabled={isLoading} // --- Desactivar
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -245,6 +326,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     onChange={(e) => setRegisterEmail(e.target.value)}
                     placeholder="tu@email.com"
                     required
+                    disabled={isLoading} // --- Desactivar
                     className="w-full pl-11 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
@@ -264,6 +346,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     placeholder="Mínimo 8 caracteres"
                     required
                     minLength={8}
+                    disabled={isLoading} // --- Desactivar
                     className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
@@ -289,6 +372,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                     onChange={(e) => setRegisterConfirmPassword(e.target.value)}
                     placeholder="Confirma tu contraseña"
                     required
+                    disabled={isLoading} // --- Desactivar
                     className="w-full pl-11 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
@@ -301,7 +385,7 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                 </div>
               </div>
 
-              {/* Términos y Condiciones */}
+              {/* Términos y Condiciones (sin cambios) */}
               <div className="flex items-start gap-2">
                 <input
                   type="checkbox"
@@ -321,15 +405,28 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                 </label>
               </div>
 
+              {/* --- 6. Mostrar Error del Formulario --- */}
+              {formError && (
+                <div className="text-red-600 bg-red-50 p-3 rounded-lg text-sm text-center">
+                  {formError}
+                </div>
+              )}
+
               {/* Botón Submit */}
               <button
                 type="submit"
-                className="w-full py-3 bg-gradient-to-r cursor-pointer from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl"
+                disabled={isLoading} // --- Desactivar
+                className="w-full py-3 bg-gradient-to-r cursor-pointer from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold rounded-lg transition shadow-lg hover:shadow-xl flex items-center justify-center disabled:opacity-70 disabled:cursor-not-allowed"
               >
-                Crear Cuenta
+                {/* --- 7. Mostrar Spinner o Texto --- */}
+                {isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  'Crear Cuenta'
+                )}
               </button>
 
-              {/* Divider */}
+              {/* Divider y Social Register (sin cambios) */}
               <div className="relative my-6">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-gray-300"></div>
@@ -338,8 +435,6 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
                   <span className="px-4 bg-white text-gray-500">o regístrate con</span>
                 </div>
               </div>
-
-              {/* Botones Social Register */}
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
@@ -363,3 +458,4 @@ export default function AuthModals({ isOpen, onClose, initialView = 'login' }: A
     </div>
   );
 }
+
